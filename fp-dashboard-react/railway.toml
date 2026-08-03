@@ -1,0 +1,18 @@
+# ============================================================
+#  railway.toml — Railway deployment configuration
+#  Docs: https://docs.railway.app/reference/config-as-code
+# ============================================================
+
+[build]
+builder = "nixpacks"
+buildCommand = "cd frontend && npm install && npm run build && cd ../backend && npm install"
+
+[deploy]
+startCommand = "cd backend && node src/server.js"
+healthcheckPath = "/api/health"
+healthcheckTimeout = 30
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3
+
+[environments.production.variables]
+NODE_ENV = "production"
