@@ -1,5 +1,5 @@
 // ============================================================
-//  routes/devices.js
+//  routes/devices.js — async version
 // ============================================================
 
 const express = require('express');
@@ -11,18 +11,17 @@ const { requireAuth, requirePermission } = require('../middleware/auth');
 const router = express.Router();
 router.use(requireAuth);
 
-router.get('/', (req, res) => {
-  res.json(deviceService.getAll());
+router.get('/', async (req, res) => {
+  try { res.json(await deviceService.getAll()); }
+  catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-router.post('/:deviceId/sensor/wipe', requirePermission('systemReset'), (req, res) => {
+router.post('/:deviceId/sensor/wipe', requirePermission('systemReset'), async (req, res) => {
   try {
     mqttClient.publishDeleteRange(req.params.deviceId, 1, 127);
     auditLog.record('sensor_wipe_all', { device_id: req.params.deviceId }, req.user.role);
     res.json({ success: true });
-  } catch (err) {
-    res.status(503).json({ error: err.message });
-  }
+  } catch(err) { res.status(503).json({ error: err.message }); }
 });
 
 module.exports = router;
