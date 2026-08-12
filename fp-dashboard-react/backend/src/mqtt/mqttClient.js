@@ -29,8 +29,9 @@ function connect({ broker, port, username, password }, onBroadcast) {
   client.on('error',    err => { console.error('[MQTT] Error:', err.message); broadcastFn('mqtt_status', { connected: false, error: err.message }); });
   client.on('offline',  ()  => broadcastFn('mqtt_status', { connected: false }));
   client.on('reconnect',()  => console.log('[MQTT] Reconnecting…'));
-
+ 
   client.on('message', async (topic, payload) => {
+    console.log(`[MQTT] ${topic}: ${payload.toString().slice(0, 150)}`); 
     let msg;
     try { msg = JSON.parse(payload.toString()); } catch { return; }
 
@@ -76,3 +77,4 @@ function publishDeleteRange(deviceId, start, end, delayMs = 80) {
 function isConnected() { return !!(client?.connected); }
 
 module.exports = { connect, publishEnroll, publishDelete, publishDeleteRange, isConnected };
+
