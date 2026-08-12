@@ -46,17 +46,31 @@ export function Overview({ liveEvents }) {
   const { selectedDevice } = useDevice();
   const [stats, setStats] = useState({});
   const [recentLog, setRecentLog] = useState([]);
-  async function loadStats() { try { setStats(await api.getStats(selectedDevice)); } catch {} }
-  async function loadRecent() { try { setRecentLog(await api.getAttendance({deviceId:selectedDevice,limit:30})); } catch {} }
+
+  async function loadStats() {
+    try { setStats(await api.getStats(selectedDevice || undefined)); } catch {}
+  }
+  async function loadRecent() {
+    try {
+      // Load with device filter if selected, otherwise load all
+      const params = selectedDevice ? { deviceId: selectedDevice, limit: 30 } : { limit: 30 };
+      setRecentLog(await api.getAttendance(params));
+    } catch {}
+  }
+
   useEffect(() => {
-    if (!selectedDevice) return;
-    loadStats(); loadRecent();
+    loadStats();
+    loadRecent();
     const id = setInterval(loadStats, 30000);
     return () => clearInterval(id);
   }, [selectedDevice]);
-  const liveForDevice = liveEvents.filter(e=>e.device===selectedDevice);
-  const combined = [...liveForDevice,...recentLog].slice(0,50);
-  if (!selectedDevice) return <p className="mono" style={{color:'var(--muted)'}}>Select a device above to view its data.</p>;
+
+  // Filter live events by selected device if one is chosen
+  const liveFiltered = selectedDevice
+    ? liveEvents.filter(e => e.device === selectedDevice)
+    : liveEvents;
+  const combined = [...liveFiltered, ...recentLog].slice(0, 50);
+
   return (
     <div>
       <div className="stat-grid">
@@ -66,7 +80,9 @@ export function Overview({ liveEvents }) {
         <StatCard label="DEVICES" value={stats.device_count} sub="ESP32 units" color="gray"/>
       </div>
       <div className="sec-head">
-        <div className="sec-title">LIVE FEED <b>// {selectedDevice}</b></div>
+        <div className="sec-title">
+          LIVE FEED <b>// {selectedDevice || 'all devices'}</b>
+        </div>
         <button className="btn btn-ghost btn-sm" onClick={loadRecent}>Refresh</button>
       </div>
       <LiveFeed rows={combined}/>
@@ -79,38 +95,64 @@ export function AttendanceLog() {
   const { selectedDevice } = useDevice();
   const [rows, setRows] = useState([]);
   const [date, setDate] = useState('');
-  async function load(d=date) {
-    if (!selectedDevice) return;
-    setRows(await api.getAttendance({deviceId:selectedDevice,...(d?{date:d}:{})}));
+  const [loading, setLoading] = useState(false);
+
+  async function load(d = date) {
+    setLoading(true);
+    try {
+      const params = {};
+      if (selectedDevice) params.deviceId = selectedDevice;
+      if (d) params.date = d;
+      setRows(await api.getAttendance(params));
+    } catch {}
+    finally { setLoading(false); }
   }
-  useEffect(()=>{ load(''); },[selectedDevice]);
+
+  useEffect(() => { load(''); }, [selectedDevice]);
+
   function exportCSV() {
-    const hdr=['slot','name','department','date','time','device'];
-    const lines=rows.map(r=>[r.fp_id,r.name||'',r.department||'',r.date,r.time,r.device]);
-    const csv=[hdr,...lines].map(r=>r.map(v=>`"${v}"`).join(',')).join('\n');
-    const a=document.createElement('a');
-    a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
-    a.download=`attendance_${selectedDevice}_${new Date().toISOString().slice(0,10)}.csv`;
+    const hdr = ['slot', 'name', 'department', 'date', 'time', 'device'];
+    const lines = rows.map(r => [r.fp_id, r.name||'', r.department||'', r.date, r.time, r.device]);
+    const csv = [hdr, ...lines].map(r => r.map(v => `"${v}"`).join(',')).join('\n');
+    const a = document.createElement('a');
+    a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+    a.download = `attendance_${selectedDevice || 'all'}_${new Date().toISOString().slice(0,10)}.csv`;
     a.click();
   }
-  if (!selectedDevice) return <p className="mono" style={{color:'var(--muted)'}}>Select a device above.</p>;
+
   return (
     <div>
-      <div style={{display:'flex',gap:8,marginBottom:14}}>
-        <input type="date" value={date} onChange={e=>{setDate(e.target.value);load(e.target.value);}} style={{background:'var(--bg3)',border:'1px solid var(--border2)',borderRadius:6,padding:'7px 10px',color:'var(--text)'}}/>
-        <button className="btn btn-ghost btn-sm" onClick={()=>{setDate('');load('');}}>Show All</button>
+      <div style={{display:'flex', gap:8, marginBottom:14, alignItems:'center'}}>
+        <input type="date" value={date}
+          onChange={e => { setDate(e.target.value); load(e.target.value); }}
+          style={{background:'var(--bg3)',border:'1px solid var(--border2)',borderRadius:6,padding:'7px 10px',color:'var(--text)'}}
+        />
+        <button className="btn btn-ghost btn-sm" onClick={() => { setDate(''); load(''); }}>Show All</button>
         <button className="btn btn-ghost btn-sm" onClick={exportCSV}>Export CSV</button>
+        {selectedDevice &&
+          <span className="mono" style={{color:'var(--muted)'}}>
+            Filtered: {selectedDevice}
+          </span>
+        }
       </div>
+
       <div className="table-wrap">
         <table>
-          <thead><tr><th>SLOT</th><th>NAME</th><th>DEPT</th><th>DATE</th><th>TIME</th><th>DEVICE</th></tr></thead>
+          <thead>
+            <tr><th>SLOT</th><th>NAME</th><th>DEPT</th><th>DATE</th><th>TIME</th><th>DEVICE</th></tr>
+          </thead>
           <tbody>
-            {!rows.length&&<tr><td colSpan={6} style={{textAlign:'center',color:'var(--muted)',padding:28}} className="mono">No records</td></tr>}
-            {rows.map(r=>(
+            {loading && (
+              <tr><td colSpan={6} style={{textAlign:'center',color:'var(--muted)',padding:28}} className="mono">Loading…</td></tr>
+            )}
+            {!loading && !rows.length && (
+              <tr><td colSpan={6} style={{textAlign:'center',color:'var(--muted)',padding:28}} className="mono">No records found</td></tr>
+            )}
+            {!loading && rows.map(r => (
               <tr key={r.id}>
                 <td><span className="badge badge-blue">#{r.fp_id}</span></td>
-                <td style={{fontWeight:500}}>{r.name||<span style={{color:'var(--muted)'}}>Unknown</span>}</td>
-                <td>{r.department||'—'}</td>
+                <td style={{fontWeight:500}}>{r.name || <span style={{color:'var(--muted)'}}>Unknown</span>}</td>
+                <td>{r.department || '—'}</td>
                 <td className="mono">{r.date}</td>
                 <td className="mono">{r.time}</td>
                 <td className="mono" style={{fontSize:10}}>{r.device}</td>
