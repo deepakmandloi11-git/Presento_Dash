@@ -26,7 +26,7 @@ function connect({ broker, port, username, password }, onBroadcast) {
     client.subscribe([TOPIC_LOG, TOPIC_STATUS]);
     broadcastFn('mqtt_status', { connected: true });
   });
-  client.on('error',    err => { console.error('[MQTT] Error:', err.message); broadcastFn('mqtt_status', { connected: false, error: err.message }); });
+  client.on('error', err => { console.error('[MQTT] Error FULL:', JSON.stringify(err), err.message, err.code);broadcastFn('mqtt_status', { connected: false, error: err.message });});
   client.on('offline',  ()  => broadcastFn('mqtt_status', { connected: false }));
   client.on('reconnect',()  => console.log('[MQTT] Reconnecting…'));
  
