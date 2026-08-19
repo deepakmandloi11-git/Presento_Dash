@@ -10,7 +10,7 @@
 const BASE = '/api';
 
 function getToken() {
-  return localStorage.getItem('fp_dashboard_token');
+  return localStorage.getItem('fp_token');  // ← CORRECT
 }
 
 async function request(path, { method = 'GET', body, auth = true } = {}) {
