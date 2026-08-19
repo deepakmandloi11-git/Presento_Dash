@@ -20,6 +20,7 @@ function connect({ broker, port, username, password }, onBroadcast) {
   if (username) { opts.username = username; opts.password = password; }
   console.log(`[MQTT] Connecting to ${broker}:${port || 1883}…`);
   const wsUrl = broker.replace('mqtt://', 'ws://').replace('mqtts://', 'wss://');
+  console.log('[MQTT] Connecting with user:', username, 'pass length:', password?.length || 0);
   client = mqtt.connect(wsUrl.includes('://') ? wsUrl : `ws://${wsUrl}`, { 
     ...opts, 
     port: port || 8083 
