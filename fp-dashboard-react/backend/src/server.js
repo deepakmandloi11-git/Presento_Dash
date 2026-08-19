@@ -92,8 +92,8 @@ wss.on('connection', ws => {
 
 // ── MQTT bridge — HiveMQ Cloud (TLS) or public broker
 mqttClient.connect({
-  broker:   process.env.MQTT_BROKER || 'ws://broker.emqx.io',
-  port:     process.env.MQTT_PORT   ? +process.env.MQTT_PORT : 8083,
+  broker:   'ws://broker.emqx.io',
+  port:     8083,
   username: process.env.MQTT_USER,
   password: process.env.MQTT_PASS,
 }, broadcast);
