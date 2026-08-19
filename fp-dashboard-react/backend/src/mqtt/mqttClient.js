@@ -19,8 +19,11 @@ function connect({ broker, port, username, password }, onBroadcast) {
   const opts = { reconnectPeriod: 5000, connectTimeout: 10000 };
   if (username) { opts.username = username; opts.password = password; }
   console.log(`[MQTT] Connecting to ${broker}:${port || 1883}…`);
-  client = mqtt.connect(broker, { ...opts, port: port || undefined });
-
+  const wsUrl = broker.replace('mqtt://', 'ws://').replace('mqtts://', 'wss://');
+  client = mqtt.connect(wsUrl.includes('://') ? wsUrl : `ws://${wsUrl}`, { 
+    ...opts, 
+    port: port || 8083 
+  });
   client.on('connect', () => {
     console.log('[MQTT] Connected');
     client.subscribe([TOPIC_LOG, TOPIC_STATUS]);
